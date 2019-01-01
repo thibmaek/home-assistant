@@ -12,7 +12,7 @@ from homeassistant.components.media_player import (
     MEDIA_TYPE_URL, PLATFORM_SCHEMA, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE,
     SUPPORT_PLAY, SUPPORT_PLAY_MEDIA, SUPPORT_PREVIOUS_TRACK, SUPPORT_STOP,
     SUPPORT_TURN_OFF, SUPPORT_TURN_ON, SUPPORT_VOLUME_MUTE, SUPPORT_VOLUME_SET,
-    SUPPORT_VOLUME_STEP, MediaPlayerDevice)
+    SUPPORT_VOLUME_STEP, SUPPORT_SELECT_SOURCE, MediaPlayerDevice)
 from homeassistant.const import (
     CONF_HOST, CONF_MAC, CONF_NAME, CONF_PORT, STATE_OFF, STATE_ON,
     STATE_UNKNOWN)
@@ -22,6 +22,8 @@ REQUIREMENTS = ['panasonic_viera==0.3.1', 'wakeonlan==1.1.6']
 
 _LOGGER = logging.getLogger(__name__)
 
+CONF_SOURCES = 'sources'
+
 DEFAULT_NAME = 'Panasonic Viera TV'
 DEFAULT_PORT = 55000
 
@@ -29,13 +31,15 @@ SUPPORT_VIERATV = SUPPORT_PAUSE | SUPPORT_VOLUME_STEP | \
     SUPPORT_VOLUME_SET | SUPPORT_VOLUME_MUTE | \
     SUPPORT_PREVIOUS_TRACK | SUPPORT_NEXT_TRACK | \
     SUPPORT_TURN_OFF | SUPPORT_PLAY | \
-    SUPPORT_PLAY_MEDIA | SUPPORT_STOP
+    SUPPORT_PLAY_MEDIA | SUPPORT_STOP | SUPPORT_SELECT_SOURCE
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
     vol.Optional(CONF_MAC): cv.string,
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
+    vol.Optional(CONF_SOURCES, default=None):
+        vol.All(cv.ensure_list, [cv.string])
 })
 
 
@@ -46,6 +50,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     mac = config.get(CONF_MAC)
     name = config.get(CONF_NAME)
     port = config.get(CONF_PORT)
+    sources = config.get(CONF_SOURCES)
 
     if discovery_info:
         _LOGGER.debug('%s', discovery_info)
@@ -58,20 +63,20 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         else:
             uuid = None
         remote = RemoteControl(host, port)
-        add_entities([PanasonicVieraTVDevice(mac, name, remote, uuid)])
+        add_entities([PanasonicVieraTVDevice(mac, name, remote, sources, uuid)])
         return True
 
     host = config.get(CONF_HOST)
     remote = RemoteControl(host, port)
 
-    add_entities([PanasonicVieraTVDevice(mac, name, remote)])
+    add_entities([PanasonicVieraTVDevice(mac, name, remote, sources)])
     return True
 
 
 class PanasonicVieraTVDevice(MediaPlayerDevice):
     """Representation of a Panasonic Viera TV."""
 
-    def __init__(self, mac, name, remote, uuid=None):
+    def __init__(self, mac, name, remote, sources, uuid=None):
         """Initialize the Panasonic device."""
         import wakeonlan
         # Save a reference to the imported class
@@ -84,6 +89,7 @@ class PanasonicVieraTVDevice(MediaPlayerDevice):
         self._state = STATE_UNKNOWN
         self._remote = remote
         self._volume = 0
+        self._sources = sources
 
     @property
     def unique_id(self) -> str:
@@ -148,6 +154,11 @@ class PanasonicVieraTVDevice(MediaPlayerDevice):
             self._remote.turn_off()
             self._state = STATE_OFF
 
+    @property
+    def source_list(self):
+        """List of available sources."""
+        return sorted(self._sources)
+
     def volume_up(self):
         """Volume up the media player."""
         self._remote.volume_up()
@@ -193,6 +204,11 @@ class PanasonicVieraTVDevice(MediaPlayerDevice):
     def media_previous_track(self):
         """Send the previous track command."""
         self._remote.media_previous_track()
+
+    def select_source(self, source):
+        """Send the command to show the input/source list."""
+        _LOGGER.debug(source)
+        self.send_key('NRC_CHG_INPUT-ONOFF')
 
     def play_media(self, media_type, media_id, **kwargs):
         """Play media."""
