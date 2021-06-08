@@ -897,6 +897,9 @@ pyvizio==0.1.56
 # homeassistant.components.volumio
 pyvolumio==0.1.2
 
+# homeassistant.components.vrt
+pyvrt==1.6.2
+
 # homeassistant.components.html5
 pywebpush==1.9.2
 

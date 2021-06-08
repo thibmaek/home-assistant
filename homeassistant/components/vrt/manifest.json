@@ -1,0 +1,8 @@
+{
+  "domain": "vrt",
+  "name": "VRT Services",
+  "config_flow": true,
+  "documentation": "https://www.home-assistant.io/integrations/vrt",
+  "requirements": ["pyvrt==1.6.2"],
+  "codeowners": ["@thibmaek"]
+}
